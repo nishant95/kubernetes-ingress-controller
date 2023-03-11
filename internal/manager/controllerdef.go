@@ -13,6 +13,7 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/kong/kubernetes-ingress-controller/v2/internal/controllers/configuration"
+	"github.com/kong/kubernetes-ingress-controller/v2/internal/controllers/crds"
 	"github.com/kong/kubernetes-ingress-controller/v2/internal/controllers/gateway"
 	"github.com/kong/kubernetes-ingress-controller/v2/internal/controllers/knative"
 	ctrlref "github.com/kong/kubernetes-ingress-controller/v2/internal/controllers/reference"
@@ -365,24 +366,27 @@ func setupControllers(
 		// Gateway API Controllers - Beta APIs
 		// ---------------------------------------------------------------------------
 		{
-			Enabled: featureGates[featuregates.GatewayFeature] && ShouldEnableCRDController(
-				schema.GroupVersionResource{
+			Enabled: featureGates[featuregates.GatewayFeature],
+			Controller: &crds.OptionalCRDController{
+				Manager:          mgr,
+				Log:              ctrl.Log.WithName("controllers").WithName(fmt.Sprintf("CRD/%s", featuregates.GatewayFeature)),
+				CacheSyncTimeout: c.CacheSyncTimeout,
+				GVR: schema.GroupVersionResource{
 					Group:    gatewayv1beta1.GroupVersion.Group,
 					Version:  gatewayv1beta1.GroupVersion.Version,
 					Resource: "gateways",
 				},
-				restMapper,
-			),
-			Controller: &gateway.GatewayReconciler{
-				Client:               mgr.GetClient(),
-				Log:                  ctrl.Log.WithName("controllers").WithName(featuregates.GatewayFeature),
-				Scheme:               mgr.GetScheme(),
-				DataplaneClient:      dataplaneClient,
-				PublishService:       c.PublishService.OrEmpty().String(),
-				WatchNamespaces:      c.WatchNamespaces,
-				EnableReferenceGrant: referenceGrantsEnabled,
-				CacheSyncTimeout:     c.CacheSyncTimeout,
-				ReferenceIndexers:    referenceIndexers,
+				Controller: &gateway.GatewayReconciler{
+					Client:               mgr.GetClient(),
+					Log:                  ctrl.Log.WithName("controllers").WithName(featuregates.GatewayFeature),
+					Scheme:               mgr.GetScheme(),
+					DataplaneClient:      dataplaneClient,
+					PublishService:       c.PublishService.OrEmpty().String(),
+					WatchNamespaces:      c.WatchNamespaces,
+					EnableReferenceGrant: referenceGrantsEnabled,
+					CacheSyncTimeout:     c.CacheSyncTimeout,
+					ReferenceIndexers:    referenceIndexers,
+				},
 			},
 		},
 		{
